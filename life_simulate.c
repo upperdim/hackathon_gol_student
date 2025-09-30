@@ -106,8 +106,8 @@ static uint32_t count_alive_neighbours(uint8_t *map, uint32_t map_dim, uint32_t 
 
 	for (uint32_t i = 0; i < 8; ++i) {
 		// TODO: eliminate %
-		uint32_t nx = (x + dx[i] + map_dim) % map_dim;
-		uint32_t ny = (y + dy[i] + map_dim) % map_dim;
+		uint32_t nx = (x + dx[i] + map_dim) & (map_dim - 1);
+		uint32_t ny = (y + dy[i] + map_dim) & (map_dim - 1);
 
 		uint8_t *neighbour_cell_to_check = get_cell(map, map_dim, nx, ny);
 
@@ -206,8 +206,8 @@ uint8_t *simulate_life(uint32_t grid_dim, start_coord_t *initial_points, uint32_
 			// For each dead neighbour of alive cell
 			for (uint32_t j = 0; j < 8; ++j) {
 				// TODO: eliminate %
-				uint32_t nx = (c + dx[j] + grid_dim) % grid_dim;
-				uint32_t ny = (r + dy[j] + grid_dim) % grid_dim;
+				uint32_t nx = (c + dx[j] + grid_dim) & (grid_dim - 1);
+				uint32_t ny = (r + dy[j] + grid_dim) & (grid_dim - 1);
 
 				uint8_t *dead_neighbour_cell = get_cell(ptr_curr, grid_dim, nx, ny);
 				if (*dead_neighbour_cell == 1) {
