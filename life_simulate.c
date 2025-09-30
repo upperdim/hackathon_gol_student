@@ -22,6 +22,7 @@
 #pragma(pop)
 
 #pragma warning(disable :5045)
+#pragma warning(disable :4711)
 // #pragma warning(disable :4711)
 // #pragma warning(disable :4710)
 
@@ -100,13 +101,13 @@ static void print_list(start_coord_t *initial_points, uint32_t initial_point_cou
 	OutputDebugStringA(debug_buff);
 }
 
-static int count_alive_neighbours(uint8_t *map, uint32_t map_dim, uint32_t x, uint32_t y) {
-	int alive_neighbour_count = 0;
+static uint32_t count_alive_neighbours(uint8_t *map, uint32_t map_dim, uint32_t x, uint32_t y) {
+	uint32_t alive_neighbour_count = 0;
 
-	for (int i = 0; i < 8; ++i) {
+	for (uint32_t i = 0; i < 8; ++i) {
 		// TODO: eliminate %
-		int nx = (x + dx[i] + map_dim) % map_dim;
-		int ny = (y + dy[i] + map_dim) % map_dim;
+		uint32_t nx = (x + dx[i] + map_dim) % map_dim;
+		uint32_t ny = (y + dy[i] + map_dim) % map_dim;
 
 		uint8_t *neighbour_cell_to_check = get_cell(map, map_dim, nx, ny);
 
@@ -123,10 +124,8 @@ uint8_t *simulate_life(uint32_t grid_dim, start_coord_t *initial_points, uint32_
 	// char debug_buff[2048];
 	
 	// Allocate
-	// static int max_alive_cells = -1;
-	// char buf[64] = {0};
-	// snprintf(buf, sizeof(buf), "%d\n", max_alive_cells);
-	// OutputDebugStringA(buf);
+	static uint32_t last_cell_x = 0;
+	static uint32_t last_cell_y = 0;
 
 	const uint32_t GRID_SIZE = grid_dim * grid_dim;
 
@@ -136,6 +135,28 @@ uint8_t *simulate_life(uint32_t grid_dim, start_coord_t *initial_points, uint32_
 
 		ptr_curr = grids;
 		ptr_next = grids + GRID_SIZE;
+
+		// Find first last coord
+		uint32_t max_init_coord_y = 0;
+
+		for (uint32_t i = 0; i < initial_point_count; ++i) {
+			if (initial_points[i].y > max_init_coord_y) {
+				max_init_coord_y = initial_points[i].y;
+			}
+		}
+
+		uint32_t max_init_coord_x = 0;
+
+		for (uint32_t i = 0; i < initial_point_count; ++i) {
+			if (initial_points[i].y == max_init_coord_y) {
+				if (initial_points[i].x > max_init_coord_x) {
+					max_init_coord_x = initial_points[i].x;
+				}
+			}
+		}
+
+		last_cell_x = max_init_coord_x;
+		last_cell_y = max_init_coord_y;
 
 		// Put initial array into CURR
 		for (uint32_t i = 0; i < initial_point_count; ++i) {
@@ -152,82 +173,62 @@ uint8_t *simulate_life(uint32_t grid_dim, start_coord_t *initial_points, uint32_
 		memset(ptr_next, 0, GRID_SIZE * sizeof(uint8_t));
 	}
 
-	// TODO: For debug, print `initial_points` list`curr` grid
-	// print_list(initial_points, initial_point_count);
-	// TODO: For debug, print `curr` grid
-	// print_grid(grids, GRID_CURR, grid_dim);
-	// TODO: For debug, print `next` grid (should be all 0's now)
-	// print_grid(grids, GRID_NEXT, grid_dim);
+	uint32_t break_all_loops = 0;
 
-	// For each alive cell
-	// int alive_cell_encountered = 0;
-	// int next_alive_cells_counter = 0;
+	uint32_t find_last_x = 0;
+	uint32_t find_last_y = 0;
 
 	for (uint32_t r = 0; r < grid_dim; ++r) {
 		for (uint32_t c = 0; c < grid_dim; ++c) {
-			// if (max_alive_cells != -1) { 
-			// 	if (alive_cell_encountered > max_alive_cells) {
-			// 		sprintf(debug_buff, "MAX ALIVE CELLS ENCOUNTERED\n");
-			// 		OutputDebugStringA(debug_buff);
-			// 		break;
-			// 	}
-			// }
+			if (c >= last_cell_x + 1 && r >= last_cell_y + 1) {
+				break_all_loops = 1;
+				break;
+			}
 
 			uint8_t *check_cell = get_cell(ptr_curr, grid_dim, c, r);
 			if (*check_cell == 0) {
 				continue; // It's dead, only check for alive cells
 			} 
-			// else {
-			// 	alive_cell_encountered++;
-			// }
 
-			int alive_neighbour_count = count_alive_neighbours(ptr_curr, grid_dim, c, r);
+			uint32_t alive_neighbour_count = count_alive_neighbours(ptr_curr, grid_dim, c, r);
 		
 			// Should this cell die
 			uint8_t *next_cell = get_cell(ptr_next, grid_dim, c, r);
 
 			if (alive_neighbour_count != 2 && alive_neighbour_count != 3) {
 				*next_cell = 0;
-				// sprintf(debug_buff, "Killed cell = (%d, %d)\n", initial_points[i].x, initial_points[i].y);
-				// OutputDebugStringA(debug_buff);
 			} else {
 				*next_cell = 1;
-				// next_alive_cells_counter++;
+				find_last_x = c;
+				find_last_y = r;
 			}
 			
-			// TODO: Print alive neighbour count
-			// char debug_buff[2048];
-			// sprintf(debug_buff, "(Alive cell) alive_neighbour_count = %d\n", alive_neighbour_count);
-			// OutputDebugStringA(debug_buff);
-		
 			// For each dead neighbour of alive cell
 			for (uint32_t j = 0; j < 8; ++j) {
 				// TODO: eliminate %
-				int nx = (c + dx[j] + grid_dim) % grid_dim;
-				int ny = (r + dy[j] + grid_dim) % grid_dim;
+				uint32_t nx = (c + dx[j] + grid_dim) % grid_dim;
+				uint32_t ny = (r + dy[j] + grid_dim) % grid_dim;
 
 				uint8_t *dead_neighbour_cell = get_cell(ptr_curr, grid_dim, nx, ny);
 				if (*dead_neighbour_cell == 1) {
 					continue; // It's not dead, only check for dead neighbours
 				}
 				
-				int alive_neighbour_count = count_alive_neighbours(ptr_curr, grid_dim, nx, ny);
+				uint32_t alive_neighbour_count = count_alive_neighbours(ptr_curr, grid_dim, nx, ny);
 
 				// Should this cell revive
 				if (alive_neighbour_count == 3) {
 					uint8_t *next_cell = get_cell(ptr_next, grid_dim, nx, ny);
 					*next_cell = 1;
-					// next_alive_cells_counter++;
-
-					// sprintf(debug_buff, "Killed cell = (%d, %d)\n", nx, ny);
-					// OutputDebugStringA(debug_buff);
+					find_last_x = nx;
+					find_last_y = ny;
 				}
 			}
 		}
 
-		// if (alive_cell_encountered > max_alive_cells) {
-		// 	break;
-		// }
+		if (break_all_loops) {
+			break;
+		}
 	}
 
 // after_iter:
@@ -236,6 +237,9 @@ uint8_t *simulate_life(uint32_t grid_dim, start_coord_t *initial_points, uint32_
 	// print_grid(grids, GRID_NEXT, grid_dim);
 
 	// max_alive_cells = next_alive_cells_counter;
+
+	last_cell_x = find_last_x;
+	last_cell_y = find_last_y;
 
 	return ptr_curr;
 }
